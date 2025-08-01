@@ -1,50 +1,42 @@
-import streamlit as st
-import requests
-from fpdf import FPDF
+from fastapi import FastAPI
+from pydantic import BaseModel
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-st.title("Product Transparency Checker")
+app = FastAPI()  # This ensures /docs is enabled by default
 
-def generate_pdf(description, questions):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Product Transparency Report", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=10)
-    pdf.multi_cell(0, 10, f"Product Description: {description}")
-    pdf.ln(5)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, txt="Follow-up Questions:", ln=True)
-    pdf.set_font("Arial", size=10)
-    for q in questions:
-        pdf.multi_cell(0, 10, f"- {q}")
-    pdf_file = "product_report.pdf"
-    pdf.output(pdf_file)
-    return pdf_file
+tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
 
-desc = st.text_area("Enter Product Description")
-questions = []
-if st.button("Generate"):
-    try:
-        res = requests.post("http://localhost:8000/generate-questions", json={"description": desc})
-        if res.status_code == 200:
-            questions = res.json().get("questions", [])
-            st.write("Follow-up Questions:")
-            for q in questions:
-                st.markdown(f"- {q}")
-        else:
-            st.error(f"Backend error: {res.status_code}")
-            st.write(res.text)
-    except Exception as e:
-        st.error(f"Error connecting to backend: {e}")
+class ProductInput(BaseModel):
+    description: str
 
-# Only show PDF download button if questions were generated
-if questions:
-    pdf_file = generate_pdf(desc, questions)
-    with open(pdf_file, "rb") as f:
-        st.download_button(
-            label="Download PDF Report",
-            data=f,
-            file_name="product_report.pdf",
-            mime="application/pdf"
-        )
+@app.post("/generate-questions")
+def generate_questions(product: ProductInput):
+    prompt = f"Generate three specific customer questions about this product: {product.description}"
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+    outputs = model.generate(
+        input_ids, 
+        max_length=64, 
+        num_return_sequences=3,
+        do_sample=True, 
+        top_k=50, 
+        top_p=0.95
+    )
+    questions = [tokenizer.decode(o, skip_special_tokens=True) for o in outputs]
+    return {"questions": questions}
+
+
+
+@app.post("/transparency-score")
+def transparency_score(product: ProductInput):
+    score = 0
+    keywords = ['organic', 'eco-friendly', 'sulfate-free', 'non-toxic', 'natural']
+    for word in keywords:
+        if word in product.description.lower():
+            score += 20
+    return {"score": min(score, 100)}
+
+# Optional: Root endpoint just for health check/friendly message
+@app.get("/")
+def root():
+    return {"message": "FastAPI backend is running! Go to /docs for API documentation."}
