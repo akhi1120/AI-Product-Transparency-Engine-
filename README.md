@@ -71,13 +71,12 @@ Backend Endpoints:
 
 ## Sample Product Entry + Example Report
 
-Sample Product Description:  
-> This organic shampoo is sulfate-free and made with natural oils to gently cleanse hair without stripping moisture. Suitable for all hair types, it is free from parabens and artificial fragrances.
+Product Description: This organic face cream has no parabens and is cruelty-free.
 
-Sample Generated Questions:
-- What are the benefits of this organic shampoo compared to traditional shampoos?
-- Is this shampoo suitable for people with sensitive skin or allergies?
-- How does the sulfate-free formula impact the hair and scalp?
+Follow-up Questions:
+- Which ingredient does this product contain?
+- What kind of skin can I expect from this product?
+- What is the rating for the ingredients and quality of this face cream?
 
 A sample PDF report is included in /design/product_report.pdf.
 
